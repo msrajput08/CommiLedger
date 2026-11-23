@@ -1,7 +1,7 @@
 :root {
   font-family: 'DM Sans', sans-serif;
-  color: #182a3a;
-  background: #f7f9fa;
+  color: var(--text);
+  background: var(--bg);
   font-synthesis: none;
   font-size: 16px;
   --bg: #f7f9fa;
@@ -2331,6 +2331,10 @@ footer a:hover {
 [data-theme='dark'] .sidebar nav > a.active {
   background: #25483f;
   color: #b3ddc9;
+}
+[data-theme='dark'] .nav-section,
+[data-theme='dark'] .breadcrumb {
+  color: var(--muted);
 }
 [data-theme='dark'] .sample-banner {
   background: #20392f;

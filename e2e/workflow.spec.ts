@@ -59,6 +59,20 @@ test('sample uses real engine and paid checkout fails closed', async ({ page }) 
   await page.goto('/pricing');
   await expect(page.getByRole('button', { name: 'Paid launch not enabled' })).toHaveCount(2);
 });
+test('dashboard is accessible in light and dark themes',async({page})=>{
+  await page.goto('/app?demo=1');
+  await expect(page.getByText(/USD\s*42,600.00/)).toBeVisible();
+  for(const theme of ['light','dark']){
+    if(theme==='dark'){
+      const menu=page.getByRole('button',{name:'Toggle workspace navigation',exact:true});
+      if(await menu.isVisible())await menu.click();
+      await page.getByRole('button',{name:'Switch to dark theme',exact:true}).click();
+      if(await menu.isVisible())await menu.click();
+    }
+    const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+    expect(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,reason:n.failureSummary}))}))).toEqual([]);
+  }
+});
 test('versioned workflow runs distinct carriers and restores an exported audit backup', async ({
   page,
 }) => {
