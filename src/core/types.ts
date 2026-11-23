@@ -143,6 +143,14 @@ export type Profile = {
   updatedAt: string;
 };
 export const ENGINE_VERSION = '1.0.0';
+export type Workflow = {
+  id: string;
+  name: string;
+  version: number;
+  archived: boolean;
+  updatedAt: string;
+  stages: { id: string; profile: Profile; deriveExpected: boolean }[];
+};
 export const defaultConfig = (): Config => ({
   version: 1,
   keys: ['policy', 'carrier', 'period'],

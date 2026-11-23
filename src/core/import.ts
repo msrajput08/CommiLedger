@@ -4,14 +4,8 @@ import readXlsxFile, { readSheetNames } from 'read-excel-file/web-worker';
 import { parseDate } from './dates';
 import { parseMoney, calculateCommission } from './money';
 import type { Config, Field, ImportFile, Mapping, RecordRow, Side } from './types';
-export const LIMITS = {
-  fileBytes: 10 * 1024 * 1024,
-  expandedBytes: 40 * 1024 * 1024,
-  totalRows: 25000,
-  columns: 80,
-  files: 10,
-  cellChars: 2000,
-};
+import { LIMITS } from './limits';
+export { LIMITS } from './limits';
 export const aliases: Record<Field, string[]> = {
   policy: ['policy', 'policy number', 'policy id', 'contract number'],
   carrier: ['carrier', 'carrier name', 'insurance company', 'insurer'],

@@ -48,11 +48,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [notice, setNotice] = useState(''),
     [status, setStatus] = useState<Context['status']>(null),
     [account, setAccount] = useState<Account | null>(null),
-    [theme, setTheme] = useState(() =>
-      typeof window !== 'undefined'
-        ? localStorage.getItem('commiledger-theme') || 'light'
-        : 'light',
-    );
+    [theme, setTheme] = useState(() => {
+      try {
+        return typeof window !== 'undefined' && localStorage.getItem('commiledger-theme') === 'dark'
+          ? 'dark'
+          : 'light';
+      } catch {
+        return 'light';
+      }
+    });
   const notify = useCallback((s: string) => setNotice(s), []);
   const refreshAccount = async () => {
     try {
@@ -73,7 +77,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('commiledger-theme', theme);
+    try {
+      localStorage.setItem('commiledger-theme', theme);
+    } catch {
+      /* Reconciliation still works when browser persistence is blocked. */
+    }
   }, [theme]);
   useEffect(() => {
     if (!notice) return;

@@ -59,3 +59,7 @@ Raw financial files are not uploaded by the import workflow. Local saves **inclu
 - [Organic launch plan](docs/LAUNCH.md)
 
 There is no auto-deploy workflow. CI validates changes on pull requests. A production deployment requires owner authorization, configured infrastructure and the release checks in the linked documentation.
+
+## Repeatable workflows and restore
+
+Carrier profiles can be captured in versioned workflow templates. Assign each imported file to a stage and run the batch; every stage is reconciled separately with its saved configuration, and completed runs are saved atomically only after the whole batch succeeds. Pro accounts can explicitly sync configuration-only templates. History restores exported audit JSON after schema, engine, source-row and recalculated-total checks, always as a new copy. See [release evidence](docs/RELEASE.md) for tested behavior and remaining gates.

@@ -30,6 +30,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('customer-facing calculations and controls', () => {
+  it('keeps local tools available when theme persistence is denied', async () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Blocked', 'SecurityError');
+    });
+    try {
+      render(
+        <MemoryRouter>
+          <WorkspaceProvider>
+            <Calculator />
+          </WorkspaceProvider>
+        </MemoryRouter>,
+      );
+      expect(screen.getByRole('textbox', { name: 'Premium' })).toBeTruthy();
+    } finally {
+      get.mockRestore();
+      set.mockRestore();
+    }
+  });
   it('recalculates from user input with exact variance', async () => {
     const user = userEvent.setup();
     render(
@@ -73,6 +94,22 @@ describe('customer-facing calculations and controls', () => {
   });
 });
 describe('explicit local persistence', () => {
+  it('saves a complete batch atomically and retains workflow snapshots', async () => {
+    const config = defaultConfig();
+    const first = reconcile(
+      sampleFiles().flatMap((f) => normalizeFile(f, config)),
+      config,
+    );
+    const second = { ...structuredClone(first), id: crypto.randomUUID() };
+    await storage.saveRuns([first, second]);
+    expect((await storage.runs()).filter((r) => [first.id, second.id].includes(r.id))).toHaveLength(
+      2,
+    );
+    const invalid = { ...second, id: undefined } as unknown as typeof second;
+    const third = { ...first, id: crypto.randomUUID() };
+    await expect(storage.saveRuns([third, invalid])).rejects.toThrow();
+    expect((await storage.runs()).some((r) => r.id === third.id)).toBe(false);
+  });
   it('retains reproducibility and append-only review entries across a database reload', async () => {
     const config = { ...defaultConfig(), asOf: '2026-11-22' },
       input = sampleFiles().flatMap((f) => normalizeFile(f, config));

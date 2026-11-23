@@ -5,6 +5,7 @@ export function database() {
   sqlite.exec('PRAGMA foreign_keys = ON');
   sqlite.exec(readFileSync('migrations/0001_auth.sql', 'utf8'));
   sqlite.exec(readFileSync('migrations/0002_application.sql', 'utf8'));
+  sqlite.exec(readFileSync('migrations/0003_workflows.sql', 'utf8'));
   const prepare = (sql: string) => {
     const args: unknown[] = [];
     const statement = {

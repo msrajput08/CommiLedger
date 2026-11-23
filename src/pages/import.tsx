@@ -1,23 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Upload, FileSpreadsheet, X, Play, ShieldCheck, ChevronDown, Check } from 'lucide-react';
 import { useWorkspace, workerTask } from '../lib/workspace';
 import { aliases, LIMITS, suggestMapping, detectHeader } from '../core/import';
 import { sampleFiles } from '../core/sample';
-import type { ImportFile, Side, Field, Run, MatchField, Profile } from '../core/types';
+import type { ImportFile, Side, Field, Run, MatchField, Profile, Workflow } from '../core/types';
+import { mapProfile, prepareBatch } from '../core/workflows';
 import { storage } from '../lib/storage';
 export function ImportPage() {
   const { files, setFiles, config, setConfig, setRun, notify } = useWorkspace();
   const [busy, setBusy] = useState(''),
     [error, setError] = useState(''),
     [name, setName] = useState('Commission reconciliation'),
-    [profiles, setProfiles] = useState<Profile[]>([]);
+    [profiles, setProfiles] = useState<Profile[]>([]),
+    [workflows, setWorkflows] = useState<Workflow[]>([]),
+    [workflowId, setWorkflowId] = useState(''),
+    [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [params] = useSearchParams();
+  const activeWorkflow = workflows.find((w) => w.id === workflowId && !w.archived);
   const worker = useRef<Worker | null>(null),
     navigate = useNavigate();
   useEffect(() => {
     storage
       .profiles()
       .then(setProfiles)
+      .catch(() => {});
+    storage
+      .workflows()
+      .then((items) => {
+        setWorkflows(items);
+        setWorkflowId(params.get('workflow') || '');
+      })
       .catch(() => {});
     return () => worker.current?.terminate();
   }, []);
@@ -55,6 +68,30 @@ export function ImportPage() {
     try {
       if (!files.some((f) => f.side === 'expected') || !files.some((f) => f.side === 'received'))
         throw new Error('Add at least one expected file and one payment file');
+      if (workflowId && !activeWorkflow)
+        throw new Error(
+          'The selected workflow is unavailable or archived. Choose another workflow.',
+        );
+      if (activeWorkflow) {
+        const jobs = prepareBatch(activeWorkflow, files, assignments, config);
+        const completed: Run[] = [];
+        for (const [i, job] of jobs.entries()) {
+          completed.push(
+            await workerTask<Run>(
+              { type: 'reconcile', ...job },
+              (message) => setBusy(`Stage ${i + 1}/${jobs.length}: ${message}`),
+              worker,
+            ),
+          );
+        }
+        await storage.saveRuns(completed);
+        setRun(completed[0]);
+        notify(
+          `${completed.length} separate reconciliations saved on this device. Open each from history.`,
+        );
+        navigate('/app/history');
+        return;
+      }
       const result = await workerTask<Run>(
         {
           type: 'reconcile',
@@ -78,17 +115,7 @@ export function ImportPage() {
     const profile = profiles.find((p) => p.id === id);
     if (!profile) return;
     setConfig({ ...profile.config, asOf: config.asOf });
-    setFiles((fs) =>
-      fs.map((f) => {
-        const h = f.sheets[f.sheet].rows[f.header];
-        const mapping = { ...f.mapping };
-        for (const [field, header] of Object.entries(profile.mappingHeaders[f.side] || {})) {
-          const idx = h.indexOf(header);
-          if (idx >= 0) mapping[field as Field] = idx;
-        }
-        return { ...f, mapping };
-      }),
-    );
+    setFiles((fs) => fs.map((f) => mapProfile(f, profile)));
     notify(`Applied ${profile.name}, version ${profile.version}. Verify mappings before running.`);
   };
   return (
@@ -194,6 +221,43 @@ export function ImportPage() {
         <ShieldCheck size={17} /> Files are read on this device. Nothing is saved until you choose
         to save a completed run.
       </div>
+      <section className="panel config-panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Reusable workflow</h2>
+            <p>Run all files together or use separate carrier configurations.</p>
+          </div>
+          <Link to="/app/workflows">Manage workflows</Link>
+        </div>
+        <label>
+          Reconciliation workflow
+          <select
+            disabled={!!busy}
+            value={workflowId}
+            onChange={(e) => {
+              setWorkflowId(e.target.value);
+              setAssignments({});
+            }}
+          >
+            <option value="">Single reconciliation</option>
+            {workflows
+              .filter((w) => !w.archived)
+              .map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} · v{w.version}
+                </option>
+              ))}
+          </select>
+        </label>
+        {activeWorkflow && (
+          <div className="notice">
+            Assign each file to a stage below. Each stage uses its saved currency, number/date
+            formats, matching keys and rule; the as-of date and coverage below apply to all stages.
+            All results are saved on this device only after the entire batch succeeds. A canceled or
+            failed batch saves no partial results.
+          </div>
+        )}
+      </section>
       {files.length > 0 && (
         <>
           <section className="panel config-panel">
@@ -202,7 +266,7 @@ export function ImportPage() {
                 <h2>Set the context</h2>
                 <p>Explicit conventions prevent accidental financial assumptions.</p>
               </div>
-              {profiles.some((p) => !p.archived) && (
+              {!activeWorkflow && profiles.some((p) => !p.archived) && (
                 <label>
                   Use carrier profile
                   <select defaultValue="" onChange={(e) => applyProfile(e.target.value)}>
@@ -221,11 +285,17 @@ export function ImportPage() {
             <div className="form-grid four">
               <label>
                 Run name
-                <input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />
+                <input
+                  disabled={!!activeWorkflow || !!busy}
+                  value={name}
+                  maxLength={100}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </label>
               <label>
                 Default currency
                 <select
+                  disabled={!!activeWorkflow || !!busy}
                   value={config.currency}
                   onChange={(e) => setConfig((c) => ({ ...c, currency: e.target.value }))}
                 >
@@ -237,6 +307,7 @@ export function ImportPage() {
               <label>
                 Number format
                 <select
+                  disabled={!!activeWorkflow || !!busy}
                   value={config.locale}
                   onChange={(e) => setConfig((c) => ({ ...c, locale: e.target.value }))}
                 >
@@ -249,6 +320,7 @@ export function ImportPage() {
               <label>
                 Date convention
                 <select
+                  disabled={!!activeWorkflow || !!busy}
                   value={config.dateFormat}
                   onChange={(e) =>
                     setConfig((c) => ({
@@ -273,6 +345,7 @@ export function ImportPage() {
               <label>
                 Amount tolerance
                 <input
+                  disabled={!!activeWorkflow || !!busy}
                   value={config.tolerance}
                   inputMode="decimal"
                   onChange={(e) => setConfig((c) => ({ ...c, tolerance: e.target.value }))}
@@ -300,6 +373,7 @@ export function ImportPage() {
                 Expected amount source
                 <select
                   aria-label="Expected amount source"
+                  disabled={!!activeWorkflow || !!busy}
                   value={config.expectedRule?.profileId || ''}
                   onChange={(e) => {
                     const p = profiles.find((x) => x.id === e.target.value);
@@ -345,6 +419,7 @@ export function ImportPage() {
               <label>
                 <input
                   type="checkbox"
+                  disabled={!!activeWorkflow || !!busy}
                   checked={config.caseSensitive}
                   onChange={(e) => setConfig((c) => ({ ...c, caseSensitive: e.target.checked }))}
                 />{' '}
@@ -367,6 +442,7 @@ export function ImportPage() {
                 <label key={k}>
                   <input
                     type="checkbox"
+                    disabled={!!activeWorkflow || !!busy}
                     checked={config.keys.includes(k)}
                     onChange={(e) =>
                       setConfig((c) => ({
@@ -384,6 +460,8 @@ export function ImportPage() {
             </div>
           </section>
           {files.map((f) => {
+            const assignedStage = activeWorkflow?.stages.find((s) => s.id === assignments[f.id]);
+            const fileConfig = assignedStage?.profile.config || config;
             const sheet = f.sheets[f.sheet],
               headers = sheet.rows[f.header] || [];
             return (
@@ -396,6 +474,29 @@ export function ImportPage() {
                     <h2>{f.name}</h2>
                   </div>
                   <div className="inline-fields">
+                    {activeWorkflow && (
+                      <label>
+                        Workflow stage for {f.name}
+                        <select
+                          disabled={!!busy}
+                          value={assignments[f.id] || ''}
+                          onChange={(e) => {
+                            const id = e.target.value,
+                              stage = activeWorkflow.stages.find((s) => s.id === id);
+                            setAssignments((a) => ({ ...a, [f.id]: id }));
+                            if (stage)
+                              patch(f.id, { mapping: mapProfile(f, stage.profile).mapping });
+                          }}
+                        >
+                          <option value="">Assign a stage</option>
+                          {activeWorkflow.stages.map((s, i) => (
+                            <option key={s.id} value={s.id}>
+                              {i + 1}. {s.profile.name} · {s.profile.config.currency}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <label>
                       Worksheet
                       <select
@@ -446,7 +547,7 @@ export function ImportPage() {
                         : field === 'due'
                           ? 'Payment due date'
                           : field}
-                      {(field === 'amount' || config.keys.includes(field as MatchField)) && (
+                      {(field === 'amount' || fileConfig.keys.includes(field as MatchField)) && (
                         <span className="required"> *</span>
                       )}
                       <select
@@ -459,7 +560,7 @@ export function ImportPage() {
                         }}
                       >
                         <option value="">
-                          {field === 'currency' ? `Use ${config.currency}` : 'Not mapped'}
+                          {field === 'currency' ? `Use ${fileConfig.currency}` : 'Not mapped'}
                         </option>
                         {headers.map((h, i) => (
                           <option value={i} key={i}>
@@ -535,7 +636,7 @@ export function ImportPage() {
       <div className="run-footer">
         <p>Up to 25,000 source rows per run · currencies remain separate</p>
         <button className="btn primary" disabled={!!busy || files.length === 0} onClick={run}>
-          <Play size={16} /> Run reconciliation
+          <Play size={16} /> {activeWorkflow ? 'Run and save batch' : 'Run reconciliation'}
         </button>
       </div>
     </>

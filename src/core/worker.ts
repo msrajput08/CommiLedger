@@ -1,12 +1,15 @@
 import { parseFile, normalizeFile, LIMITS } from './import';
 import { reconcile } from './engine';
+import { restoreBackup } from './backup';
 self.onmessage = async ({ data }) => {
   try {
     self.postMessage({
       type: 'progress',
       message: data.type === 'parse' ? 'Reading and validating file…' : 'Validating source rows…',
     });
-    if (data.type === 'parse') {
+    if (data.type === 'restore') {
+      self.postMessage({ type: 'done', value: restoreBackup(data.json) });
+    } else if (data.type === 'parse') {
       const file = await parseFile(data.file, data.side);
       self.postMessage({ type: 'done', value: file });
     } else {

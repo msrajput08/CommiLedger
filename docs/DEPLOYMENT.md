@@ -33,9 +33,9 @@ Paddle was selected because its official supplier-country documentation supports
 
 ## Backups and recovery
 
-Raw local files/runs have no server backup. Users should export audit JSON/CSV before clearing browser data. Optional account configurations and aggregate summaries live in D1; use its available recovery facilities plus regular owner-controlled D1 exports. Test restoring to an isolated database before relying on a backup. Avoid public build artifacts containing database dumps or personal data.
+Raw local files/runs have no server backup. Users should export audit JSON/CSV before clearing browser data. History can restore current-engine audit JSON after recalculating its findings and totals; restore creates a new local run. Apply migration 0003 for optional Pro cloud workflow templates. Optional account configurations and aggregate summaries live in D1; use its available recovery facilities plus regular owner-controlled D1 exports. Test restoring to an isolated database before relying on a backup. Avoid public build artifacts containing database dumps or personal data.
 
-The daily cleanup removes expired session/verification/rate-limit data and 90-day webhook event identifiers. Provider financial records follow separate retention requirements. Account deletion cascades through owned profiles/summaries/subscriptions after active subscriptions are canceled. Local device data is deleted separately.
+The daily cleanup removes expired session/verification/rate-limit data and 90-day webhook event identifiers. Provider financial records follow separate retention requirements. Account deletion cascades through owned profiles/workflows/summaries/subscriptions after active subscriptions are canceled. Local device data is deleted separately.
 
 ## CI and secrets
 

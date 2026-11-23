@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { storage } from '../lib/storage';
 import { api } from '../lib/api';
-import { useWorkspace } from '../lib/workspace';
+import { useWorkspace, workerTask } from '../lib/workspace';
+import { BACKUP_BYTES } from '../core/backup';
 import { defaultRule, defaultConfig, type Profile, type Run, type Field } from '../core/types';
 import { validateConfig } from '../core/engine';
 import { validateRule, money, D } from '../core/money';
@@ -431,16 +432,38 @@ export function History() {
   const { setRun, notify, account, run } = useWorkspace();
   const [runs, setRuns] = useState<Run[]>([]),
     [deleting, setDeleting] = useState<Run | null>(null),
-    [compare, setCompare] = useState<string[]>([]);
+    [compare, setCompare] = useState<string[]>([]),
+    [loading, setLoading] = useState(true),
+    [restoring, setRestoring] = useState(''),
+    [restoreCandidate, setRestoreCandidate] = useState<Run | null>(null);
+  const restoreWorker = useRef<Worker | null>(null);
   const navigate = useNavigate();
   const reload = () =>
     storage
       .runs()
       .then((r) => setRuns(r.sort((a, b) => b.createdAt.localeCompare(a.createdAt))))
-      .catch(() => notify('Local history is unavailable.'));
+      .catch(() => notify('Local history is unavailable.'))
+      .finally(() => setLoading(false));
   useEffect(() => {
     void reload();
+    return () => restoreWorker.current?.terminate();
   }, []);
+  const restore = async (file: File) => {
+    try {
+      if (file.size > BACKUP_BYTES) throw new Error('Audit backup exceeds 40 MiB');
+      setRestoring('Checking backup and recalculating source totals…');
+      const candidate = await workerTask<Run>(
+        { type: 'restore', json: await file.text() },
+        setRestoring,
+        restoreWorker,
+      );
+      setRestoreCandidate(candidate);
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setRestoring('');
+    }
+  };
   const sync = async (r: Run) => {
     try {
       const { id, name, createdAt, sample, inputCount, totals } = r;
@@ -463,7 +486,41 @@ export function History() {
           New reconciliation
         </Link>
       </div>
-      {!runs.length ? (
+      <section className="panel config-panel">
+        <h2>Restore an audit backup</h2>
+        <p>
+          Select a CommiLedger JSON export. The engine checks the source rows and recalculates every
+          finding and total before you choose to save a new copy. Local notes are not proof of
+          authenticity.
+        </p>
+        <label>
+          Audit JSON backup
+          <input
+            type="file"
+            accept=".json,application/json"
+            disabled={!!restoring}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void restore(file);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        {restoring && (
+          <div role="status">
+            {restoring}
+            <button
+              className="btn secondary small"
+              onClick={() => restoreWorker.current?.terminate()}
+            >
+              Cancel restore
+            </button>
+          </div>
+        )}
+      </section>
+      {loading ? (
+        <p role="status">Loading saved runs…</p>
+      ) : !runs.length ? (
         <Empty
           title="Your first run is waiting."
           action={
@@ -633,6 +690,32 @@ export function History() {
               }}
             >
               Delete local run
+            </button>
+          </div>
+        </Modal>
+      )}
+      {restoreCandidate && (
+        <Modal title="Save restored reconciliation?" onClose={() => setRestoreCandidate(null)}>
+          <div className="detail-body">
+            <h3>{restoreCandidate.name}</h3>
+            <p>
+              {restoreCandidate.inputCount} source rows · {restoreCandidate.rows.length} findings.
+              Internal financial checks passed. Existing saved runs will remain unchanged.
+            </p>
+            <button
+              className="btn primary"
+              onClick={async () => {
+                try {
+                  await storage.saveRun(restoreCandidate);
+                  setRestoreCandidate(null);
+                  await reload();
+                  notify('Backup restored as a new saved run.');
+                } catch {
+                  notify('Could not save the restored run.');
+                }
+              }}
+            >
+              Save restored copy
             </button>
           </div>
         </Modal>

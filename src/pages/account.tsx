@@ -59,8 +59,8 @@ export function Pricing() {
             items: [
               'Everything in Plus',
               'Cloud configuration audit export',
-              'Planned: reusable workflow templates',
-              'Planned: organization workspaces',
+              'Cloud workflow template sync',
+              'Versioned carrier workflow snapshots',
             ],
             plan: 'pro',
           },
@@ -113,9 +113,9 @@ export function Pricing() {
           <h3>Limits follow measured capacity.</h3>
           <p>
             This release uses the same technical guardrail for all local workflows: 25,000 combined
-            rows, 10 MiB per file and 10 files per run. Higher paid limits and export quotas have
-            not been validated or enforced. Paid backend access is verified by the server;
-            browser-only code is not a secure paywall.
+            rows, 10 MiB per file and 10 files per run or batch. Local reports, saved profiles,
+            workflow templates and comparisons are available without a subscription. Paid plans add
+            account sync and cloud exports. Team workspaces are not included in this release.
           </p>
         </div>
       </div>

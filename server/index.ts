@@ -8,6 +8,7 @@ import { paddle, planFor, features, applySubscriptionEvent } from './billing';
 import { validateConfig } from '../src/core/engine';
 import { validateRule } from '../src/core/money';
 import { profileSchema } from './validation';
+import { validateWorkflow } from '../src/core/workflows';
 type Variables = {
   user: { id: string; email: string; name: string; emailVerified: boolean };
   plan: 'free' | 'plus' | 'pro';
@@ -112,12 +113,14 @@ app.get('/api/account/export', async (c) => {
     c.env.DB.prepare('SELECT id,data,version,updated_at FROM profiles WHERE user_id=?').bind(id),
     c.env.DB.prepare('SELECT id,data,created_at FROM run_summaries WHERE user_id=?').bind(id),
     c.env.DB.prepare('SELECT plan,status,paid_through FROM subscriptions WHERE user_id=?').bind(id),
+    c.env.DB.prepare('SELECT id,data,version,updated_at FROM workflows WHERE user_id=?').bind(id),
   ]);
   return c.json({
     user: c.get('user'),
     profiles: data[0].results,
     history: data[1].results,
     subscriptions: data[2].results,
+    workflows: data[3].results,
   });
 });
 app.get('/api/account/profiles', async (c) => {
@@ -174,6 +177,50 @@ app.delete('/api/account/profiles/:id', async (c) => {
     .run();
   return c.json({ ok: true });
 });
+app.get('/api/account/workflows', async (c) => {
+  const r = await c.env.DB.prepare(
+    'SELECT id,data,version FROM workflows WHERE user_id=? ORDER BY updated_at DESC',
+  )
+    .bind(c.get('user').id)
+    .all();
+  return c.json(r.results);
+});
+app.put('/api/account/workflows/:id', async (c) => {
+  if (c.get('plan') !== 'pro')
+    return c.json({ error: 'Pro is required for cloud workflow templates' }, 403);
+  const body = z
+    .object({ data: z.unknown(), expectedVersion: z.number().int().nonnegative() })
+    .strict()
+    .parse(await c.req.json());
+  const data = validateWorkflow(body.data),
+    id = c.req.param('id'),
+    uid = c.get('user').id;
+  if (id !== data.id) return c.json({ error: 'Workflow ID mismatch' }, 400);
+  const query =
+    body.expectedVersion === 0
+      ? c.env.DB.prepare(
+          'INSERT OR IGNORE INTO workflows(id,user_id,data,version,updated_at) SELECT ?,?,?,1,? WHERE (SELECT count(*) FROM workflows WHERE user_id=?)<20',
+        ).bind(id, uid, JSON.stringify(data), new Date().toISOString(), uid)
+      : c.env.DB.prepare(
+          'UPDATE workflows SET data=?,version=version+1,updated_at=? WHERE id=? AND user_id=? AND version=?',
+        ).bind(JSON.stringify(data), new Date().toISOString(), id, uid, body.expectedVersion);
+  const r = await query.run();
+  if (!r.meta.changes)
+    return c.json(
+      {
+        error:
+          'Workflow changed, is unavailable, or the 20-workflow storage budget is full. Reload before saving.',
+      },
+      409,
+    );
+  return c.json({ version: body.expectedVersion + 1 });
+});
+app.delete('/api/account/workflows/:id', async (c) => {
+  await c.env.DB.prepare('DELETE FROM workflows WHERE id=? AND user_id=?')
+    .bind(c.req.param('id'), c.get('user').id)
+    .run();
+  return c.json({ ok: true });
+});
 app.get('/api/account/history', async (c) => {
   const r = await c.env.DB.prepare(
     'SELECT id,data,created_at FROM run_summaries WHERE user_id=? ORDER BY created_at DESC LIMIT 100',
@@ -200,20 +247,25 @@ app.post('/api/account/history', async (c) => {
     .strict()
     .parse(await c.req.json());
   if (JSON.stringify(body).length > 20000) return c.json({ error: 'Summary exceeds 20 KiB' }, 400);
-  const count = await c.env.DB.prepare('SELECT count(*) as n FROM run_summaries WHERE user_id=?')
-    .bind(c.get('user').id)
-    .first<{ n: number }>();
-  if ((count?.n || 0) >= 100)
+  // Only aggregate totals; raw financial rows and customer policy IDs are not accepted.
+  const saved = await c.env.DB.prepare(
+    'INSERT INTO run_summaries(id,user_id,data,created_at) SELECT ?,?,?,? WHERE (SELECT count(*) FROM run_summaries WHERE user_id=?)<100 OR EXISTS(SELECT 1 FROM run_summaries WHERE id=? AND user_id=?) ON CONFLICT(id,user_id) DO UPDATE SET data=excluded.data',
+  )
+    .bind(
+      body.id,
+      c.get('user').id,
+      JSON.stringify(body),
+      body.createdAt,
+      c.get('user').id,
+      body.id,
+      c.get('user').id,
+    )
+    .run();
+  if (!saved.meta.changes)
     return c.json(
       { error: 'Account summary storage budget is full. Export and remove an older summary.' },
       409,
     );
-  // Only aggregate totals; raw financial rows and customer policy IDs are not accepted.
-  await c.env.DB.prepare(
-    'INSERT INTO run_summaries(id,user_id,data,created_at) SELECT ?,?,?,? WHERE (SELECT count(*) FROM run_summaries WHERE user_id=?)<100 ON CONFLICT(id,user_id) DO UPDATE SET data=excluded.data',
-  )
-    .bind(body.id, c.get('user').id, JSON.stringify(body), body.createdAt, c.get('user').id)
-    .run();
   return c.json({ ok: true });
 });
 app.delete('/api/account/history/:id', async (c) => {
@@ -229,11 +281,13 @@ app.get('/api/account/audit-export', async (c) => {
   const data = await c.env.DB.batch([
     c.env.DB.prepare('SELECT id,data,version,updated_at FROM profiles WHERE user_id=?').bind(uid),
     c.env.DB.prepare('SELECT id,data,created_at FROM run_summaries WHERE user_id=?').bind(uid),
+    c.env.DB.prepare('SELECT id,data,version,updated_at FROM workflows WHERE user_id=?').bind(uid),
   ]);
   return c.json({
     generatedAt: new Date().toISOString(),
     profiles: data[0].results,
     summaries: data[1].results,
+    workflows: data[2].results,
     scope: 'Account configurations and aggregate run summaries; source data remains on device.',
   });
 });

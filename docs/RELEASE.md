@@ -9,13 +9,13 @@
 | Rule-based expected commission derivation and source-based analytics                          | Tests cover explicit rule selection, mapped-amount precedence, currency rejection and cross-period matching.                                                                                        |
 | Auth and account isolation                                                                    | Real Better Auth against a SQLite-backed D1 API contract in tests; email transport mocked. Secure session, verification, expiry, authorization, origin, profile concurrency and paid access checks. |
 | Billing state                                                                                 | Synthetic signature rejection, idempotency, out-of-order events, configured-price allowlist and paid-through expiry tests. No live purchase.                                                        |
-| Persistence and UI                                                                            | Explicit IndexedDB save/reload/delete test, calculator interaction, unavailable checkout test and semantic axe check.                                                                               |
+| Persistence and UI                                                                            | Explicit IndexedDB save/reload/delete, failed-batch rollback, backup restore, calculator interaction, unavailable checkout, denied browser storage and semantic axe checks.                         |
 | Builds                                                                                        | TypeScript check, Vite build with 16 prerendered routes, Wrangler Worker dry run.                                                                                                                   |
 | Dependencies                                                                                  | npm audit returned zero reported vulnerabilities after test-tool upgrades. This is not an independent security audit.                                                                               |
 | Scale                                                                                         | Synthetic Node benchmark in benchmark.json; 25k guarded source-row envelope.                                                                                                                        |
 | Browser observation                                                                           | Homepage, actual-engine sample dashboard, import mapping, investigation notes and saved history observed in the browser.                                                                            |
 
-At this checkpoint, **101 automated tests pass**. Desktop/mobile Playwright scenarios and axe checks are included in CI; consult the PR's check run for the executed browser result. JSDOM semantic accessibility tests intentionally exclude color contrast and cannot establish visual, keyboard, screen-reader or WCAG conformance by themselves.
+At this checkpoint, **118 automated tests pass**. Desktop/mobile Playwright scenarios and axe checks are included in CI; consult the PR's check run for the executed browser result. JSDOM semantic accessibility tests intentionally exclude color contrast and cannot establish visual, keyboard, screen-reader or WCAG conformance by themselves.
 
 The backend bundle was dry-run built. No Cloudflare database, production worker, real email delivery or live payment was provisioned or verified in this work.
 
@@ -35,12 +35,12 @@ The backend bundle was dry-run built. No Cloudflare database, production worker,
 ## Remaining product work, not hidden behind credentials
 
 1. Plus/Pro commercial packaging is not finalized: the release exposes the same local row guardrail and local exports to everyone. Higher paid limits/export quotas require measured browser capacity and an enforceable product design. Client-only JavaScript is not a secure commercial paywall.
-2. Pro organization workspaces, shared/team review permissions and reusable workflow templates are not implemented. The pricing page labels them planned and checkout is disabled until configured. Do not sell these as delivered features.
-3. Multiple files/carriers can reconcile in one run. Independently queued batches with a different rule/profile per carrier are not implemented.
+2. Organization workspaces and shared/team review permissions are not implemented and are excluded from the current plans. Reusable versioned workflow templates, explicit Pro cloud sync and separate carrier runs are implemented.
+3. Batch workflows support up to five separately configured stages within the same 25,000-row/10-file guardrail. All files require explicit stage assignment. A batch saves all completed runs atomically after every stage succeeds; cancellation or failure saves no partial results. Separate runs do not establish a consolidated cross-carrier balance.
 4. Matching uses user-selected exact composite keys, not a sequential priority ladder or date-window tolerance. Fuzzy matching and automatic ambiguity resolution are deliberately absent.
 5. Financial corrections require a changed source or mapping and a rerun. There is no immutable server transaction-review ledger or in-place amount editing.
 6. The provider portal is integrated; self-service plan change/downgrade behavior must be verified against the configured Paddle portal. A dedicated plan-update route is not implemented.
-7. Local audit JSON export is implemented; importing an arbitrary audit JSON backup through the UI is not yet supported.
+7. Audit JSON restore validates the format and engine version, recalculates all findings/totals from the normalized source rows and asks before saving a new copy. It rejects inconsistent results and cannot establish source authenticity or tamper-proof notes. Restore supports the current engine version and up to 40 MiB, with the 25,000-row guardrail.
 8. No PDF/OCR, carrier API ingestion, FX conversion, customer statement cloud storage or regulatory certification is included or advertised as working.
 
 These are concrete release boundaries, not claims that compilation proves a production-ready financial service.

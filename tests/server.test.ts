@@ -221,6 +221,110 @@ describe('auth and API security with real Better Auth and SQLite D1 contract', (
     expect(await planFor(local.db, a.id)).toBe('plus');
     expect(await planFor(local.db, a.id, '2100-01-01T00:00:00.000Z')).toBe('free');
   });
+  it('enforces Pro templates, owner isolation, version leases and strict configuration-only data', async () => {
+    const workflow = {
+      id: crypto.randomUUID(),
+      name: 'Month end',
+      version: 1,
+      archived: false,
+      updatedAt: new Date().toISOString(),
+      stages: [{ id: crypto.randomUUID(), profile, deriveExpected: false }],
+    };
+    const path = '/account/workflows/' + workflow.id;
+    expect(
+      (
+        await request(path, {
+          method: 'PUT',
+          cookie: a.cookie,
+          body: { data: workflow, expectedVersion: 0 },
+        })
+      ).status,
+    ).toBe(403);
+    local.sqlite.prepare("UPDATE subscriptions SET plan='pro' WHERE id='sub-a'").run();
+    expect(
+      (
+        await request(path, {
+          method: 'PUT',
+          cookie: a.cookie,
+          body: { data: workflow, expectedVersion: 0 },
+        })
+      ).status,
+    ).toBe(200);
+    expect(await (await request('/account/workflows', { cookie: b.cookie })).json()).toEqual([]);
+    expect(
+      (
+        await request(path, {
+          method: 'PUT',
+          cookie: a.cookie,
+          body: { data: workflow, expectedVersion: 0 },
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await request(path, {
+          method: 'PUT',
+          cookie: a.cookie,
+          body: { data: { ...workflow, rows: [{ policy: 'private' }] }, expectedVersion: 1 },
+        })
+      ).status,
+    ).toBe(400);
+    await request(path, { method: 'DELETE', cookie: b.cookie, body: {} });
+    expect(
+      (await (await request('/account/workflows', { cookie: a.cookie })).json()) as unknown[],
+    ).toHaveLength(1);
+    const exported = (await (await request('/account/export', { cookie: a.cookie })).json()) as any;
+    expect(exported.workflows).toHaveLength(1);
+    expect((await request('/account/audit-export', { cookie: a.cookie })).status).toBe(200);
+    local.sqlite.prepare("UPDATE subscriptions SET plan='plus' WHERE id='sub-a'").run();
+    expect(
+      (
+        await request(path, {
+          method: 'PUT',
+          cookie: a.cookie,
+          body: { data: workflow, expectedVersion: 1 },
+        })
+      ).status,
+    ).toBe(403);
+    expect((await request(path, { method: 'DELETE', cookie: a.cookie, body: {} })).status).toBe(
+      200,
+    );
+  });
+  it('updates existing history at the storage ceiling and rejects a new summary without claiming success', async () => {
+    const ids = Array.from({ length: 100 }, () => crypto.randomUUID());
+    const value = {
+      id: ids[0],
+      name: 'Full budget test',
+      createdAt: new Date().toISOString(),
+      sample: true,
+      inputCount: 1,
+      totals: { USD: { received: '10.00' } },
+    };
+    for (const id of ids)
+      local.sqlite
+        .prepare('INSERT INTO run_summaries VALUES(?,?,?,?)')
+        .run(id, a.id, JSON.stringify({ ...value, id }), value.createdAt);
+    expect(
+      (await request('/account/history', { method: 'POST', cookie: a.cookie, body: value })).status,
+    ).toBe(200);
+    expect(
+      (
+        await request('/account/history', {
+          method: 'POST',
+          cookie: a.cookie,
+          body: { ...value, id: crypto.randomUUID() },
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        local.sqlite
+          .prepare('SELECT count(*) as n FROM run_summaries WHERE user_id=?')
+          .get(a.id) as any
+      ).n,
+    ).toBe(100);
+    local.sqlite.prepare('DELETE FROM run_summaries WHERE user_id=?').run(a.id);
+  });
   it('rejects expired sessions', async () => {
     local.sqlite.prepare('UPDATE session SET expiresAt=? WHERE userId=?').run(0, b.id);
     expect((await request('/account/me', { cookie: b.cookie })).status).toBe(401);

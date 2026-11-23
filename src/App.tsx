@@ -30,6 +30,7 @@ import {
 } from './pages/marketing';
 import { Pricing, AuthPage, Contact } from './pages/account';
 import { ImportPage } from './pages/import';
+import { Workflows } from './pages/workflows';
 import { Overview, ResultsPage } from './pages/results';
 import { Profiles, History, Reports, Settings } from './pages/manage';
 import { sampleFiles } from './core/sample';
@@ -40,6 +41,7 @@ const nav = [
   { path: '/app/investigations', label: 'Investigations', icon: ScanSearch },
   { path: '/app/analytics', label: 'Analytics', icon: ChartNoAxesCombined },
   { path: '/app/profiles', label: 'Carriers & rules', icon: Building2 },
+  { path: '/app/workflows', label: 'Workflows', icon: Files },
   { path: '/app/history', label: 'History', icon: HistoryIcon },
   { path: '/app/reports', label: 'Reports', icon: FileBarChart2 },
 ];
@@ -284,6 +286,7 @@ export function App() {
             <Route path="investigations" element={<ResultsPage issues />} />
             <Route path="analytics" element={<Overview analytics />} />
             <Route path="profiles" element={<Profiles />} />
+            <Route path="workflows" element={<Workflows />} />
             <Route path="history" element={<History />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
