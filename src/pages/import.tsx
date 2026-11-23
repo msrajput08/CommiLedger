@@ -576,7 +576,12 @@ export function ImportPage() {
                     Source preview · {sheet.rows.length - f.header - 1} rows after header{' '}
                     <ChevronDown size={14} />
                   </summary>
-                  <div className="table-scroll">
+                  <div
+                    className="table-scroll"
+                    tabIndex={0}
+                    role="region"
+                    aria-label="Scrollable data table"
+                  >
                     <table>
                       <thead>
                         <tr>

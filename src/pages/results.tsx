@@ -307,7 +307,7 @@ export function Findings({
           </div>
         </>
       )}
-      <div className="table-scroll">
+      <div className="table-scroll" tabIndex={0} role="region" aria-label="Scrollable data table">
         <table className="ledger-table">
           <thead>
             <tr>
@@ -333,7 +333,7 @@ export function Findings({
               <th className="numeric">Received</th>
               <th className="numeric">Difference</th>
               <th>Finding</th>
-              <th>{compact ? '' : 'Review'}</th>
+              <th>{compact ? 'Actions' : 'Review'}</th>
             </tr>
           </thead>
           <tbody>
@@ -785,7 +785,7 @@ export function Overview({ analytics = false }: { analytics?: boolean }) {
             Open investigations
           </Link>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Scrollable data table">
           <table>
             <thead>
               <tr>

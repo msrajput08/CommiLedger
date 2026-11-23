@@ -543,7 +543,12 @@ export function History() {
               </p>
             </div>
           </div>
-          <div className="table-scroll">
+          <div
+            className="table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable data table"
+          >
             <table>
               <thead>
                 <tr>
@@ -630,7 +635,12 @@ export function History() {
             Difference is run B minus run A. These may be different import scopes, not a financial
             trend.
           </p>
-          <div className="table-scroll">
+          <div
+            className="table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label="Scrollable data table"
+          >
             <table>
               <thead>
                 <tr>
@@ -783,7 +793,7 @@ export function Reports() {
       </div>
       <div className="report-summary panel">
         <h2>Financial summary by currency</h2>
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="Scrollable data table">
           <table>
             <thead>
               <tr>

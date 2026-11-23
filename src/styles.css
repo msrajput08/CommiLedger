@@ -667,7 +667,7 @@ td strong {
 .status.duplicate,
 .status.ambiguous {
   background: #f4edf8;
-  color: #816297;
+  color: #735385;
 }
 .status.reversal,
 .status.invalid {
@@ -1447,7 +1447,7 @@ footer a:hover {
   margin-left: auto;
   font-size: 0.68rem;
   background: #dbeae1;
-  color: #397454;
+  color: #306548;
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -1596,7 +1596,7 @@ footer a:hover {
   background: #e4eddf;
   border-color: #d5e1cf;
   font-size: 0.6rem;
-  color: #5b7550;
+  color: #4b633f;
   letter-spacing: 0.5px;
 }
 .sample-banner.neutral {
@@ -1913,17 +1913,17 @@ footer a:hover {
 .color-1 {
   background: #f0edf7;
   border-color: #e5dff0;
-  color: #8c78a4;
+  color: #68517e;
 }
 .color-2 {
   background: #edf2e8;
   border-color: #e1e8d9;
-  color: #6d8760;
+  color: #49633c;
 }
 .color-3 {
   background: #f7eee5;
   border-color: #efdfd1;
-  color: #aa845f;
+  color: #7c5230;
 }
 .carrier-table td {
   font-size: 0.77rem;
