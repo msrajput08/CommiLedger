@@ -65,9 +65,11 @@ test('dashboard is accessible in light and dark themes', async ({ page }) => {
   for (const theme of ['light', 'dark']) {
     if (theme === 'dark') {
       const menu = page.getByRole('button', { name: 'Toggle workspace navigation', exact: true });
-      if (await menu.isVisible()) await menu.click();
+      const mobile = await menu.isVisible();
+      if (mobile) await menu.click();
       await page.getByRole('button', { name: 'Switch to dark theme', exact: true }).click();
-      if (await menu.isVisible()) await menu.click();
+      if (mobile)
+        await page.getByRole('button', { name: 'Close workspace navigation', exact: true }).click();
     }
     const result = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])

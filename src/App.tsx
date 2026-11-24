@@ -15,6 +15,7 @@ import {
   Play,
   ChevronDown,
   Menu,
+  X,
   ShieldCheck,
   Plus,
 } from 'lucide-react';
@@ -112,9 +113,22 @@ function WorkspaceShell() {
       <a className="skip" href="#workspace-main">
         Skip to workspace
       </a>
-      <aside className={`sidebar ${menu ? 'open' : ''}`}>
+      <aside
+        id="workspace-sidebar"
+        className={`sidebar ${menu ? 'open' : ''}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setMenu(false);
+        }}
+      >
         <div className="sidebar-brand">
           <Brand />
+          <button
+            className="icon-btn sidebar-close"
+            aria-label="Close workspace navigation"
+            onClick={() => setMenu(false)}
+          >
+            <X size={18} />
+          </button>
         </div>
         <div className="workspace-name">
           <span className="workspace-avatar">{run?.sample ? 'S' : 'L'}</span>
@@ -179,6 +193,7 @@ function WorkspaceShell() {
               className="icon-btn mobile-menu"
               aria-label="Toggle workspace navigation"
               aria-expanded={menu}
+              aria-controls="workspace-sidebar"
               onClick={() => setMenu(!menu)}
             >
               <Menu />
