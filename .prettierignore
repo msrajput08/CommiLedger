@@ -1,0 +1,7 @@
+dist
+dist-api
+node_modules
+package-lock.json
+docs/benchmark.json
+playwright-report
+test-results

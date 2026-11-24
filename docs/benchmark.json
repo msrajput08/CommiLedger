@@ -1,0 +1,58 @@
+{
+  "measuredAt": "2026-11-22T23:00:56.845Z",
+  "node": "v24.22.3",
+  "platform": "linux",
+  "scope": "Synthetic Node benchmark, not a browser/device guarantee. 50k is exploratory engine-only and not exposed as a release limit.",
+  "guardrail": {
+    "sourceRows": 25000,
+    "fileMiB": 10,
+    "expandedWorkbookMiB": 40,
+    "files": 10
+  },
+  "cases": [
+    {
+      "sourceRows": 1000,
+      "reconciliationMs": [
+        62,
+        34,
+        22
+      ],
+      "peakObservedHeapDeltaMiB": 4.3,
+      "csvBytes": 36817,
+      "parseAndNormalizeMs": 87
+    },
+    {
+      "sourceRows": 5000,
+      "reconciliationMs": [
+        130,
+        63,
+        56
+      ],
+      "peakObservedHeapDeltaMiB": 12.5,
+      "csvBytes": 187817,
+      "parseAndNormalizeMs": 358
+    },
+    {
+      "sourceRows": 25000,
+      "reconciliationMs": [
+        286,
+        286,
+        251
+      ],
+      "peakObservedHeapDeltaMiB": 46.7,
+      "csvBytes": 952817,
+      "parseAndNormalizeMs": 1599
+    },
+    {
+      "sourceRows": 50000,
+      "reconciliationMs": [
+        480,
+        466,
+        463
+      ],
+      "peakObservedHeapDeltaMiB": 75.4,
+      "csvBytes": 1927817,
+      "parseAndNormalizeMs": null
+    }
+  ]
+}
