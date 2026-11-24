@@ -1988,7 +1988,7 @@ footer a:hover {
   display: flex;
   justify-content: space-between;
   font-size: 0.65rem;
-  color: #62717f;
+  color: var(--muted);
   gap: 20px;
 }
 .steps {
@@ -2342,7 +2342,8 @@ footer a:hover {
   color: #b3ddc9;
 }
 [data-theme='dark'] .nav-section,
-[data-theme='dark'] .breadcrumb {
+[data-theme='dark'] .breadcrumb,
+[data-theme='dark'] .page-heading .eyebrow {
   color: var(--muted);
 }
 [data-theme='dark'] .sample-banner {
